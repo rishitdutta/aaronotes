@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique // Clerk user ID
+  firstName     String?
+  lastName      String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  patients      Patient[] // A doctor has many patients
+}
+
+model Patient {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  name        String
+  dateOfBirth DateTime?
+  gender      String?
+  contact     String?
+  medicalId   String?     // Optional medical record number
+  userId      String      // Foreign key linking to the User (doctor)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encounters  Encounter[] // A patient has many encounters
+}
+
+model Encounter {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  rawTranscript   String?  // The raw text from the speech-to-text API
+  structuredNote  Json?    // The structured JSON note from the LLM
+  status          String   @default("DRAFT") // e.g., DRAFT, FINAL
+  title           String?  // Optional title for the encounter
+  duration        Int?     // Duration of recording in seconds
+
+  patientId       String   // Foreign key linking to the Patient
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
