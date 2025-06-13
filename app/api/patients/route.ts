@@ -11,12 +11,11 @@ export async function GET() {
     let dbUser = await db.user.findUnique({
       where: { clerkId: user.id },
     });
-
     if (!dbUser) {
       dbUser = await db.user.create({
         data: {
           clerkId: user.id,
-          email: user.emailAddresses[0]?.emailAddress,
+          email: user.emailAddresses?.[0]?.emailAddress,
           firstName: user.firstName || "",
           lastName: user.lastName || "",
           image: user.imageUrl,
@@ -66,12 +65,11 @@ export async function POST(request: NextRequest) {
     let dbUser = await db.user.findUnique({
       where: { clerkId: user.id },
     });
-
     if (!dbUser) {
       dbUser = await db.user.create({
         data: {
           clerkId: user.id,
-          email: user.emailAddresses[0]?.emailAddress,
+          email: user.emailAddresses?.[0]?.emailAddress,
           firstName: user.firstName || "",
           lastName: user.lastName || "",
           image: user.imageUrl,

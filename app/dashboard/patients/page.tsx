@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUserPlus, faPlus } from "@fortawesome/free-solid-svg-icons";
 import {
   Card,
   CardContent,
@@ -29,7 +29,7 @@ interface Patient {
   dateOfBirth?: Date;
   gender?: string;
   contact?: string;
-  encounters: Array<{
+  encounters?: Array<{
     id: string;
     createdAt: string;
   }>;
@@ -112,29 +112,33 @@ export default function PatientsPage() {
       </div>
     );
   }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
-          <p className="text-gray-600 mt-2">Manage your patient roster</p>
-        </div>
-
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <h1 className="text-3xl font-bold text-brand-primary mb-3">
+            Patients
+          </h1>
+          <p className="text-gray-600">Manage your patient roster</p>
+        </div>        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
+            <button className="btn-brand flex items-center px-6 py-3 rounded-xl font-medium transition-all shadow-sm">
+              <FontAwesomeIcon
+                icon={faPlus}
+                className="w-4 h-4 mr-3 text-brand-icon"
+              />
               Add Patient
-            </Button>
+            </button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Patient</DialogTitle>{" "}
+              <DialogTitle className="text-brand-primary">
+                Add New Patient
+              </DialogTitle>
               <DialogDescription>
                 Enter the patient&apos;s information to create a new record.
               </DialogDescription>
-            </DialogHeader>{" "}
+            </DialogHeader>
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -184,36 +188,43 @@ export default function PatientsPage() {
                   <Input
                     id="contact"
                     placeholder="Phone or email"
-                    value={formData.contact}
-                    onChange={(e) =>
+                    value={formData.contact}                    onChange={(e) =>
                       setFormData({ ...formData, contact: e.target.value })
                     }
                   />
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-brand-primary hover:bg-gray-50 transition-colors"
                   onClick={() => setIsDialogOpen(false)}
                 >
                   Cancel
-                </Button>
-                <Button type="submit">Add Patient</Button>
+                </button>
+                <button
+                  type="submit"
+                  className="btn-brand px-4 py-2 rounded-lg font-medium transition-all"
+                >
+                  Add Patient
+                </button>
               </div>
-            </form>
+            </form>{" "}
           </DialogContent>
         </Dialog>
-      </div>{" "}
+      </div>
       {/* Patients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {" "}
         {patients.map((patient: Patient) => (
           <Link key={patient.id} href={`/dashboard/patients/${patient.id}`}>
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">{patient.name}</CardTitle>
+                    <CardTitle className="text-lg text-brand-primary">
+                      {patient.name}
+                    </CardTitle>
                     <CardDescription>
                       {patient.dateOfBirth
                         ? `Age ${calculateAge(patient.dateOfBirth)} • ${
@@ -222,24 +233,24 @@ export default function PatientsPage() {
                         : patient.gender || "No additional info"}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">
-                    {patient.encounters.length} notes
+                  <Badge variant="secondary" className="text-brand-primary">
+                    {patient.encounters?.length || 0} notes
                   </Badge>
                 </div>
-              </CardHeader>
+              </CardHeader>{" "}
               <CardContent>
                 <div className="space-y-2 text-sm text-gray-600">
                   <div>Contact: {patient.contact || "Not provided"}</div>
                   <div>
                     Last visit:{" "}
-                    {patient.encounters.length > 0
+                    {patient.encounters && patient.encounters.length > 0
                       ? new Date(
                           patient.encounters[0].createdAt
                         ).toLocaleDateString()
                       : "No visits yet"}
                   </div>
                 </div>
-              </CardContent>
+              </CardContent>{" "}
             </Card>
           </Link>
         ))}
@@ -247,17 +258,30 @@ export default function PatientsPage() {
       {patients.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {" "}
+            <FontAwesomeIcon
+              icon={faUserPlus}
+              size="3x"
+              className="text-brand-icon mx-auto mb-4"
+            />
+            <h3 className="text-lg font-medium text-brand-primary mb-2">
               No patients yet
             </h3>
             <p className="text-gray-600 mb-4">
               Get started by adding your first patient
             </p>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+            <button
+              onClick={() => setIsDialogOpen(true)}
+              className="btn-brand flex items-center px-4 py-2 rounded-lg font-medium transition-all mx-auto"
+            >
+              {" "}
+              <FontAwesomeIcon
+                icon={faPlus}
+                size="sm"
+                className="mr-2 text-brand-icon"
+              />
               Add Your First Patient
-            </Button>
+            </button>
           </CardContent>
         </Card>
       )}

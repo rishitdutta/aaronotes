@@ -1,0 +1,401 @@
+"use client";
+
+import { useState, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faMicrophone,
+  faPlay,
+  faPause,
+  faStop,
+  faUpload,
+  faFileAudio,
+  faUser,
+  faClock,
+  faSave,
+} from "@fortawesome/free-solid-svg-icons";
+
+export default function EncounterPage() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [patientName, setPatientName] = useState("");
+  const [encounterTitle, setEncounterTitle] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      const chunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = (event) => {
+        chunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/wav" });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start timer
+      intervalRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert(
+        "Error accessing microphone. Please ensure microphone permissions are granted."
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsPaused(false);
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isPaused) {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+
+      // Resume timer
+      intervalRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith("audio/")) {
+      setAudioBlob(file);
+      setAudioUrl(URL.createObjectURL(file));
+      setRecordingTime(0); // You might want to get actual duration from the file
+    } else {
+      alert("Please select a valid audio file.");
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const processEncounter = async () => {
+    if (!audioBlob) {
+      alert("No audio recording found.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Here you would send the audio to your transcription service
+      const formData = new FormData();
+      formData.append("audio", audioBlob);
+      formData.append("patientName", patientName);
+      formData.append("title", encounterTitle);
+
+      // Simulate processing
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      alert("Encounter processed successfully! (This is a demo)");
+
+      // Reset form
+      setAudioBlob(null);
+      setAudioUrl(null);
+      setPatientName("");
+      setEncounterTitle("");
+      setRecordingTime(0);
+    } catch (error) {
+      console.error("Error processing encounter:", error);
+      alert("Error processing encounter. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  return (
+    <div className="space-y-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-brand-primary mb-3">
+          New Encounter
+        </h1>
+        <p className="text-gray-600">
+          Record or upload audio for clinical documentation
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {" "}
+        {/* Recording Section */}{" "}
+        <Card className="shadow-sm border-0 bg-white">
+          <CardHeader className="pb-6">
+            <CardTitle className="text-brand-primary flex items-center text-lg">
+              <FontAwesomeIcon
+                icon={faMicrophone}
+                className="w-5 h-5 mr-3 text-brand-icon"
+              />
+              Audio Recording
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Record live audio or upload an existing file
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {" "}
+            {/* Recording Controls */}
+            <div className="flex flex-col items-center space-y-6">
+              <div className="text-5xl font-mono text-brand-primary bg-gray-50 px-8 py-4 rounded-2xl">
+                {formatTime(recordingTime)}
+              </div>
+
+              <div className="flex items-center space-x-4">
+                {!isRecording && !audioBlob && (
+                  <button
+                    onClick={startRecording}
+                    className="btn-brand flex items-center px-8 py-4 rounded-2xl font-medium transition-all shadow-sm"
+                  >
+                    <FontAwesomeIcon
+                      icon={faMicrophone}
+                      className="w-5 h-5 mr-3 text-brand-icon"
+                    />
+                    Start Recording
+                  </button>
+                )}{" "}
+                {isRecording && !isPaused && (
+                  <>
+                    {" "}
+                    <button
+                      onClick={pauseRecording}
+                      className="btn-brand flex items-center px-6 py-3 rounded-xl"
+                    >
+                      <FontAwesomeIcon
+                        icon={faPause}
+                        className="w-4 h-4 mr-2 text-brand-icon"
+                      />
+                      Pause
+                    </button>
+                    <button
+                      onClick={stopRecording}
+                      className="bg-red-500 hover:bg-red-600 text-white flex items-center px-6 py-3 rounded-xl transition-colors shadow-sm"
+                    >
+                      <FontAwesomeIcon icon={faStop} className="w-4 h-4 mr-2" />
+                      Stop
+                    </button>
+                  </>
+                )}{" "}
+                {isPaused && (
+                  <>
+                    {" "}
+                    <button
+                      onClick={resumeRecording}
+                      className="btn-brand flex items-center px-6 py-3 rounded-xl"
+                    >
+                      <FontAwesomeIcon
+                        icon={faPlay}
+                        className="w-4 h-4 mr-2 text-brand-icon"
+                      />
+                      Resume
+                    </button>
+                    <button
+                      onClick={stopRecording}
+                      className="bg-red-500 hover:bg-red-600 text-white flex items-center px-6 py-3 rounded-xl transition-colors shadow-sm"
+                    >
+                      <FontAwesomeIcon icon={faStop} className="w-4 h-4 mr-2" />
+                      Stop
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Recording Status */}
+              {isRecording && (
+                <div className="flex items-center text-red-500 animate-pulse">
+                  <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                  {isPaused ? "Recording Paused" : "Recording..."}
+                </div>
+              )}
+            </div>{" "}
+            {/* File Upload */}
+            <div className="border-t pt-6">
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Or upload an existing audio file
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  aria-label="Upload audio file"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-brand flex items-center px-6 py-3 rounded-xl mx-auto shadow-sm"
+                >
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    className="w-4 h-4 mr-3 text-brand-icon"
+                  />
+                  Upload Audio File
+                </button>
+              </div>
+            </div>
+            {/* Audio Preview */}{" "}
+            {audioUrl && (
+              <div className="border-t pt-4">
+                {" "}
+                <div className="flex items-center mb-2">
+                  <FontAwesomeIcon
+                    icon={faFileAudio}
+                    size="sm"
+                    className="text-brand-icon mr-2"
+                  />
+                  <span className="text-brand-primary font-medium">
+                    Audio Preview
+                  </span>
+                </div>
+                <audio controls className="w-full">
+                  <source src={audioUrl} type="audio/wav" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* Encounter Details */}{" "}
+        <Card className="shadow-sm border-0 bg-white">
+          <CardHeader className="pb-6">
+            <CardTitle className="text-brand-primary flex items-center text-lg">
+              <FontAwesomeIcon
+                icon={faUser}
+                className="w-5 h-5 mr-3 text-brand-icon"
+              />
+              Encounter Details
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Add patient information and encounter details
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <Label htmlFor="patient-name">Patient Name (Optional)</Label>
+              <Input
+                id="patient-name"
+                placeholder="Enter patient name or leave blank to infer from recording"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                If left blank, we&apos;ll try to identify the patient from the
+                recording
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="encounter-title">
+                Encounter Title (Optional)
+              </Label>
+              <Input
+                id="encounter-title"
+                placeholder="e.g., Follow-up visit, Initial consultation"
+                value={encounterTitle}
+                onChange={(e) => setEncounterTitle(e.target.value)}
+              />
+            </div>{" "}
+            <div className="border-t pt-6">
+              <div className="space-y-4">
+                <div className="flex items-center text-sm text-gray-600">
+                  <FontAwesomeIcon
+                    icon={faClock}
+                    className="w-4 h-4 mr-3 text-brand-icon"
+                  />
+                  Duration: {formatTime(recordingTime)}
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <FontAwesomeIcon
+                    icon={faFileAudio}
+                    className="w-4 h-4 mr-3 text-brand-icon"
+                  />
+                  Status: {audioBlob ? "Ready to process" : "No audio recorded"}
+                </div>
+              </div>
+            </div>
+            <div className="border-t pt-6">
+              <button
+                onClick={processEncounter}
+                disabled={!audioBlob || isProcessing}
+                className={`w-full flex items-center justify-center px-6 py-4 rounded-xl font-medium transition-all shadow-sm ${
+                  audioBlob && !isProcessing
+                    ? "btn-brand"
+                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary mr-3"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <FontAwesomeIcon
+                      icon={faSave}
+                      className="w-4 h-4 mr-3 text-brand-icon"
+                    />
+                    Process Encounter
+                  </>
+                )}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
