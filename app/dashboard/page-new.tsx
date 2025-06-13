@@ -6,15 +6,11 @@ import {
   faPlus,
   faUsers,
   faChevronRight,
-  faMicrophone,
 } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { useUser } from "@clerk/nextjs";
 
 export default function DashboardPage() {
-  const { user } = useUser();
-
   // Sample data for recent patients
   const recentPatients = [
     { id: 1, name: "John Smith", lastUpdated: "2 hours ago" },
@@ -35,14 +31,15 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-brand-primary mb-3">
-          Welcome back{user?.firstName ? `, Dr. ${user.firstName}` : ""}!
+          Dashboard
         </h1>
         <p className="text-gray-600">
-          Here&apos;s an overview of your clinical activities.
+          Welcome back! Here&apos;s an overview of your clinical activities.
         </p>
       </div>
+
       {/* Top Section - Purple Banner */}
-      <div className="bg-brand-primary rounded-3xl p-8 text-white shadow-brand-lg">
+      <div className="bg-gradient-to-r from-brand-primary to-purple-600 rounded-3xl p-8 text-white shadow-brand-lg">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <h2 className="text-2xl font-bold mb-4">Start New Encounter</h2>
@@ -51,29 +48,27 @@ export default function DashboardPage() {
             </p>
             <Link
               href="/dashboard/encounters/new"
-              className="inline-flex items-center bg-white text-brand-primary px-8 py-4 rounded-xl font-medium hover:bg-brand-primary hover:text-white transition-all shadow-lg hover:shadow-xl hover:transform hover:scale-105 border border-white/20"
+              className="inline-flex items-center bg-white text-brand-primary px-8 py-4 rounded-xl font-medium hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl hover:transform hover:scale-105"
             >
               <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-3" />
               Start Encounter
             </Link>
           </div>
           <div className="flex-1 flex justify-end">
-            {/* Circular mic icon */}
-            <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
-              <FontAwesomeIcon
-                icon={faMicrophone}
-                className="w-12 h-12 text-white/80"
-              />
+            {/* Space for future graphic */}
+            <div className="w-64 h-32 bg-white/10 rounded-2xl flex items-center justify-center text-purple-200">
+              <span className="text-sm">Graphic Space</span>
             </div>
           </div>
         </div>
       </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Patients - Takes 2 columns */}
         <div className="lg:col-span-2">
           <Card className="card-hover shadow-brand">
-            <CardHeader className="">
+            <CardHeader className="pb-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-brand-primary flex items-center text-xl">
                   <FontAwesomeIcon
@@ -93,13 +88,12 @@ export default function DashboardPage() {
                   />
                 </Link>
               </div>
-            </CardHeader>{" "}
+            </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentPatients.map((patient) => (
-                  <Link
+                  <div
                     key={patient.id}
-                    href={`/dashboard/patients/${patient.id}`}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center">
@@ -108,7 +102,7 @@ export default function DashboardPage() {
                           {patient.name}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          Last updated {patient.lastUpdated}
+                          Last updated: {patient.lastUpdated}
                         </p>
                       </div>
                     </div>
@@ -116,7 +110,7 @@ export default function DashboardPage() {
                       icon={faChevronRight}
                       className="w-4 h-4 text-gray-400"
                     />
-                  </Link>
+                  </div>
                 ))}
               </div>
             </CardContent>

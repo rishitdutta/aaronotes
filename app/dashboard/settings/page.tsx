@@ -120,8 +120,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Template Configuration */}
-        <Card>
+        {/* Template Configuration */}{" "}
+        <Card className="card-hover shadow-brand">
           <CardHeader>
             <CardTitle className="text-brand-primary">
               Note Template Configuration
@@ -144,7 +144,6 @@ export default function SettingsPage() {
                 }
               />
             </div>
-
             <div className="space-y-3">
               <Label>Template Fields</Label>
               {selectedTemplate.fields.map((field) => (
@@ -168,8 +167,8 @@ export default function SettingsPage() {
                         : "bg-gray-200 text-gray-600"
                     }`}
                   >
-                    {field.required ? "Required" : "Optional"}
-                  </button>{" "}
+                    {field.required ? "Required" : "Optional"}{" "}
+                  </button>
                   <button
                     onClick={() => removeField(field.id)}
                     className="p-1 text-red-500 hover:bg-red-50 rounded"
@@ -180,7 +179,6 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
-
             <div className="border-t pt-4">
               <Label>Add New Field</Label>
               <div className="space-y-2 mt-2">
@@ -194,7 +192,7 @@ export default function SettingsPage() {
                   value={newFieldDescription}
                   onChange={(e) => setNewFieldDescription(e.target.value)}
                   rows={2}
-                />{" "}
+                />
                 <button
                   onClick={addField}
                   className="btn-brand flex items-center px-3 py-2 rounded-lg font-medium transition-all"
@@ -208,15 +206,12 @@ export default function SettingsPage() {
                   Add Field
                 </button>
               </div>
-            </div>
-
+            </div>{" "}
             <div className="border-t pt-4">
-              {" "}
               <button
                 onClick={saveTemplate}
                 className="btn-brand flex items-center px-4 py-2 rounded-lg font-medium transition-all w-full justify-center"
               >
-                {" "}
                 <FontAwesomeIcon
                   icon={faCheck}
                   size="sm"
@@ -227,9 +222,8 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Preview */}
-        <Card>
+        {/* Preview */}{" "}
+        <Card className="card-hover shadow-brand">
           <CardHeader>
             <CardTitle className="text-brand-primary">
               Template Preview

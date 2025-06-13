@@ -27,8 +27,16 @@ export default function EncounterPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioFiles, setAudioFiles] = useState<
+    Array<{
+      id: string;
+      blob: Blob;
+      url: string;
+      name: string;
+      type: "recorded" | "uploaded";
+      duration: number;
+    }>
+  >([]);
   const [patientName, setPatientName] = useState("");
   const [encounterTitle, setEncounterTitle] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,11 +44,12 @@ export default function EncounterPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
+      const recordingId = Date.now().toString();
+
       mediaRecorderRef.current = mediaRecorder;
 
       const chunks: BlobPart[] = [];
@@ -50,8 +59,17 @@ export default function EncounterPage() {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/wav" });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
+        const url = URL.createObjectURL(blob);
+        const newAudioFile = {
+          id: recordingId,
+          blob,
+          url,
+          name: `Recording ${audioFiles.length + 1}`,
+          type: "recorded" as const,
+          duration: recordingTime,
+        };
+
+        setAudioFiles((prev) => [...prev, newAudioFile]);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -107,15 +125,27 @@ export default function EncounterPage() {
       }, 1000);
     }
   };
-
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith("audio/")) {
-      setAudioBlob(file);
-      setAudioUrl(URL.createObjectURL(file));
-      setRecordingTime(0); // You might want to get actual duration from the file
-    } else {
-      alert("Please select a valid audio file.");
+    const files = event.target.files;
+    if (files) {
+      Array.from(files).forEach((file, index) => {
+        if (file.type.startsWith("audio/")) {
+          const fileId = (Date.now() + index).toString();
+          const url = URL.createObjectURL(file);
+          const newAudioFile = {
+            id: fileId,
+            blob: file,
+            url,
+            name: file.name,
+            type: "uploaded" as const,
+            duration: 0, // Will be updated when audio loads
+          };
+
+          setAudioFiles((prev) => [...prev, newAudioFile]);
+        } else {
+          alert(`${file.name} is not a valid audio file.`);
+        }
+      });
     }
   };
 
@@ -126,19 +156,20 @@ export default function EncounterPage() {
       .toString()
       .padStart(2, "0")}`;
   };
-
   const processEncounter = async () => {
-    if (!audioBlob) {
-      alert("No audio recording found.");
+    if (audioFiles.length === 0) {
+      alert("No audio files found.");
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      // Here you would send the audio to your transcription service
+      // Here you would send the audio files to your transcription service
       const formData = new FormData();
-      formData.append("audio", audioBlob);
+      audioFiles.forEach((audioFile, index) => {
+        formData.append(`audio_${index}`, audioFile.blob);
+      });
       formData.append("patientName", patientName);
       formData.append("title", encounterTitle);
 
@@ -148,8 +179,7 @@ export default function EncounterPage() {
       alert("Encounter processed successfully! (This is a demo)");
 
       // Reset form
-      setAudioBlob(null);
-      setAudioUrl(null);
+      setAudioFiles([]);
       setPatientName("");
       setEncounterTitle("");
       setRecordingTime(0);
@@ -160,6 +190,10 @@ export default function EncounterPage() {
       setIsProcessing(false);
     }
   };
+
+  const removeAudioFile = (fileId: string) => {
+    setAudioFiles((prev) => prev.filter((file) => file.id !== fileId));
+  };
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -169,12 +203,10 @@ export default function EncounterPage() {
         <p className="text-gray-600">
           Record or upload audio for clinical documentation
         </p>
-      </div>
-
+      </div>{" "}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {" "}
         {/* Recording Section */}{" "}
-        <Card className="shadow-sm border-0 bg-white">
+        <Card className="card-hover shadow-brand">
           <CardHeader className="pb-6">
             <CardTitle className="text-brand-primary flex items-center text-lg">
               <FontAwesomeIcon
@@ -186,9 +218,8 @@ export default function EncounterPage() {
             <CardDescription className="text-gray-600">
               Record live audio or upload an existing file
             </CardDescription>
-          </CardHeader>
+          </CardHeader>{" "}
           <CardContent className="space-y-6">
-            {" "}
             {/* Recording Controls */}
             <div className="flex flex-col items-center space-y-6">
               <div className="text-5xl font-mono text-brand-primary bg-gray-50 px-8 py-4 rounded-2xl">
@@ -196,7 +227,8 @@ export default function EncounterPage() {
               </div>
 
               <div className="flex items-center space-x-4">
-                {!isRecording && !audioBlob && (
+                {" "}
+                {!isRecording && (
                   <button
                     onClick={startRecording}
                     className="btn-brand flex items-center px-8 py-4 rounded-2xl font-medium transition-all shadow-sm"
@@ -205,12 +237,13 @@ export default function EncounterPage() {
                       icon={faMicrophone}
                       className="w-5 h-5 mr-3 text-brand-icon"
                     />
-                    Start Recording
+                    {audioFiles.length > 0
+                      ? "Record Another"
+                      : "Start Recording"}
                   </button>
-                )}{" "}
+                )}
                 {isRecording && !isPaused && (
                   <>
-                    {" "}
                     <button
                       onClick={pauseRecording}
                       className="btn-brand flex items-center px-6 py-3 rounded-xl"
@@ -227,12 +260,11 @@ export default function EncounterPage() {
                     >
                       <FontAwesomeIcon icon={faStop} className="w-4 h-4 mr-2" />
                       Stop
-                    </button>
+                    </button>{" "}
                   </>
-                )}{" "}
+                )}
                 {isPaused && (
                   <>
-                    {" "}
                     <button
                       onClick={resumeRecording}
                       className="btn-brand flex items-center px-6 py-3 rounded-xl"
@@ -261,20 +293,24 @@ export default function EncounterPage() {
                   {isPaused ? "Recording Paused" : "Recording..."}
                 </div>
               )}
-            </div>{" "}
+            </div>
             {/* File Upload */}
             <div className="border-t pt-6">
               <div className="text-center">
+                {" "}
                 <p className="text-gray-600 mb-4">
-                  Or upload an existing audio file
+                  {audioFiles.length > 0
+                    ? "Upload additional audio files"
+                    : "Or upload an existing audio file"}
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="audio/*"
+                  multiple
                   onChange={handleFileUpload}
                   className="hidden"
-                  aria-label="Upload audio file"
+                  aria-label="Upload audio files"
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -284,34 +320,79 @@ export default function EncounterPage() {
                     icon={faUpload}
                     className="w-4 h-4 mr-3 text-brand-icon"
                   />
-                  Upload Audio File
+                  Upload Audio Files
                 </button>
-              </div>
-            </div>
-            {/* Audio Preview */}{" "}
-            {audioUrl && (
-              <div className="border-t pt-4">
-                {" "}
-                <div className="flex items-center mb-2">
+              </div>{" "}
+            </div>{" "}
+            {/* Audio Files List */}
+            {audioFiles.length > 0 && (
+              <div className="border-t pt-6">
+                <div className="flex items-center mb-4">
                   <FontAwesomeIcon
                     icon={faFileAudio}
-                    size="sm"
-                    className="text-brand-icon mr-2"
+                    className="w-5 h-5 text-brand-icon mr-2"
                   />
                   <span className="text-brand-primary font-medium">
-                    Audio Preview
+                    Audio Files ({audioFiles.length})
                   </span>
                 </div>
-                <audio controls className="w-full">
-                  <source src={audioUrl} type="audio/wav" />
-                  Your browser does not support the audio element.
-                </audio>
+                <div className="space-y-3">
+                  {audioFiles.map((audioFile) => (
+                    <div
+                      key={audioFile.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
+                    >
+                      <div className="flex items-center flex-1">
+                        <FontAwesomeIcon
+                          icon={faFileAudio}
+                          className="w-4 h-4 text-brand-icon mr-3"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">
+                            {audioFile.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {audioFile.type === "recorded"
+                              ? "Recorded"
+                              : "Uploaded"}{" "}
+                            •
+                            {audioFile.type === "recorded" &&
+                              ` ${formatTime(audioFile.duration)}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <audio controls className="h-8">
+                          <source src={audioFile.url} type="audio/wav" />
+                          Your browser does not support the audio element.
+                        </audio>
+                        <button
+                          onClick={() => removeAudioFile(audioFile.id)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                          aria-label="Remove audio file"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </CardContent>
+          </CardContent>{" "}
         </Card>
         {/* Encounter Details */}{" "}
-        <Card className="shadow-sm border-0 bg-white">
+        <Card className="card-hover shadow-brand">
           <CardHeader className="pb-6">
             <CardTitle className="text-brand-primary flex items-center text-lg">
               <FontAwesomeIcon
@@ -323,10 +404,12 @@ export default function EncounterPage() {
             <CardDescription className="text-gray-600">
               Add patient information and encounter details
             </CardDescription>
-          </CardHeader>
+          </CardHeader>{" "}
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="patient-name">Patient Name (Optional)</Label>
+              <Label htmlFor="patient-name" className="mb-2 block">
+                Patient Name (Optional)
+              </Label>
               <Input
                 id="patient-name"
                 placeholder="Enter patient name or leave blank to infer from recording"
@@ -339,7 +422,7 @@ export default function EncounterPage() {
               </p>
             </div>
             <div>
-              <Label htmlFor="encounter-title">
+              <Label htmlFor="encounter-title" className="mb-2 block">
                 Encounter Title (Optional)
               </Label>
               <Input
@@ -348,7 +431,7 @@ export default function EncounterPage() {
                 value={encounterTitle}
                 onChange={(e) => setEncounterTitle(e.target.value)}
               />
-            </div>{" "}
+            </div>
             <div className="border-t pt-6">
               <div className="space-y-4">
                 <div className="flex items-center text-sm text-gray-600">
@@ -357,22 +440,26 @@ export default function EncounterPage() {
                     className="w-4 h-4 mr-3 text-brand-icon"
                   />
                   Duration: {formatTime(recordingTime)}
-                </div>
+                </div>{" "}
                 <div className="flex items-center text-sm text-gray-600">
                   <FontAwesomeIcon
                     icon={faFileAudio}
                     className="w-4 h-4 mr-3 text-brand-icon"
                   />
-                  Status: {audioBlob ? "Ready to process" : "No audio recorded"}
+                  Audio Files:{" "}
+                  {audioFiles.length > 0
+                    ? `${audioFiles.length} file(s) ready`
+                    : "No files uploaded"}
                 </div>
               </div>
             </div>
             <div className="border-t pt-6">
+              {" "}
               <button
                 onClick={processEncounter}
-                disabled={!audioBlob || isProcessing}
+                disabled={audioFiles.length === 0 || isProcessing}
                 className={`w-full flex items-center justify-center px-6 py-4 rounded-xl font-medium transition-all shadow-sm ${
-                  audioBlob && !isProcessing
+                  audioFiles.length > 0 && !isProcessing
                     ? "btn-brand"
                     : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }`}

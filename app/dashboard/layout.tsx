@@ -15,12 +15,13 @@ export default function DashboardLayout({
       <div className="w-72 bg-brand-background shadow-sm flex flex-col">
         <div className="p-8">
           <div className="flex items-center justify-center">
+            {" "}
             <Image
               src="/logo.svg"
               alt="AaroNotes"
-              width={150}
-              height={32}
-              className="h-8 w-auto"
+              width={180}
+              height={40}
+              className="h-10 w-auto"
             />
           </div>
         </div>
@@ -46,9 +47,9 @@ export default function DashboardLayout({
                 className="w-5 h-5 mr-4 text-brand-icon"
               />
               Patients
-            </Link>
+            </Link>{" "}
           </div>
-        </nav>{" "}
+        </nav>
         {/* Bottom Section with Profile and Settings */}
         <div className="p-6 border-t border-white/20">
           <div className="flex items-center gap-3">

@@ -120,7 +120,8 @@ export default function PatientsPage() {
             Patients
           </h1>
           <p className="text-gray-600">Manage your patient roster</p>
-        </div>        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        </div>{" "}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <button className="btn-brand flex items-center px-6 py-3 rounded-xl font-medium transition-all shadow-sm">
               <FontAwesomeIcon
@@ -188,7 +189,8 @@ export default function PatientsPage() {
                   <Input
                     id="contact"
                     placeholder="Phone or email"
-                    value={formData.contact}                    onChange={(e) =>
+                    value={formData.contact}
+                    onChange={(e) =>
                       setFormData({ ...formData, contact: e.target.value })
                     }
                   />
@@ -208,17 +210,17 @@ export default function PatientsPage() {
                 >
                   Add Patient
                 </button>
-              </div>
-            </form>{" "}
+              </div>{" "}
+            </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </div>{" "}
       {/* Patients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {" "}
         {patients.map((patient: Patient) => (
           <Link key={patient.id} href={`/dashboard/patients/${patient.id}`}>
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="card-hover shadow-brand cursor-pointer">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
@@ -236,8 +238,8 @@ export default function PatientsPage() {
                   <Badge variant="secondary" className="text-brand-primary">
                     {patient.encounters?.length || 0} notes
                   </Badge>
-                </div>
-              </CardHeader>{" "}
+                </div>{" "}
+              </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm text-gray-600">
                   <div>Contact: {patient.contact || "Not provided"}</div>
@@ -249,16 +251,15 @@ export default function PatientsPage() {
                         ).toLocaleDateString()
                       : "No visits yet"}
                   </div>
-                </div>
-              </CardContent>{" "}
+                </div>{" "}
+              </CardContent>
             </Card>
           </Link>
         ))}
-      </div>
+      </div>{" "}
       {patients.length === 0 && (
-        <Card>
+        <Card className="card-hover shadow-brand">
           <CardContent className="text-center py-12">
-            {" "}
             <FontAwesomeIcon
               icon={faUserPlus}
               size="3x"
@@ -269,12 +270,11 @@ export default function PatientsPage() {
             </h3>
             <p className="text-gray-600 mb-4">
               Get started by adding your first patient
-            </p>
+            </p>{" "}
             <button
               onClick={() => setIsDialogOpen(true)}
               className="btn-brand flex items-center px-4 py-2 rounded-lg font-medium transition-all mx-auto"
             >
-              {" "}
               <FontAwesomeIcon
                 icon={faPlus}
                 size="sm"

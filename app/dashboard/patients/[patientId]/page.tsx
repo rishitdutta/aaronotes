@@ -1,6 +1,16 @@
 "use client";
 
-import { ArrowLeft, Clock, FileText } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowLeft,
+  faClock,
+  faFileText,
+  faPlus,
+  faUser,
+  faCalendar,
+  faPhone,
+  faIdCard,
+} from "@fortawesome/free-solid-svg-icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,9 +19,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import RecordingComponent from "@/components/RecordingComponent";
 
 // Mock data - would come from your API
@@ -42,6 +61,7 @@ const mockPatient = {
 
 export default function PatientDetailPage() {
   const params = useParams();
+  const [isEncounterModalOpen, setIsEncounterModalOpen] = useState(false);
 
   const calculateAge = (dateOfBirth: Date) => {
     const today = new Date();
@@ -63,17 +83,17 @@ export default function PatientDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header */}{" "}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link href="/dashboard/patients">
             <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4 mr-2" />
               Back to Patients
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-brand-primary">
               {mockPatient.name}
             </h1>
             <p className="text-gray-600">
@@ -82,60 +102,109 @@ export default function PatientDetailPage() {
             </p>
           </div>
         </div>
+        <Dialog
+          open={isEncounterModalOpen}
+          onOpenChange={setIsEncounterModalOpen}
+        >
+          <DialogTrigger asChild>
+            <Button className="btn-brand">
+              <FontAwesomeIcon icon={faPlus} className="w-4 h-4 mr-2" />
+              New Encounter
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle className="text-brand-primary">
+                Create New Encounter
+              </DialogTitle>
+              <DialogDescription>
+                Record or upload audio for {mockPatient.name}
+              </DialogDescription>
+            </DialogHeader>
+            <RecordingComponent
+              patientId={params.patientId as string}
+              onEncounterSaved={() => {
+                setIsEncounterModalOpen(false);
+                window.location.reload();
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {" "}
         {/* Patient Info */}
         <div className="lg:col-span-1">
-          <Card>
+          <Card className="card-hover shadow-brand">
             <CardHeader>
-              <CardTitle>Patient Information</CardTitle>
+              <CardTitle className="text-brand-primary flex items-center">
+                <FontAwesomeIcon
+                  icon={faUser}
+                  className="w-5 h-5 mr-3 text-brand-icon"
+                />
+                Patient Information
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">
-                  Date of Birth
-                </label>
-                <p className="text-gray-900">
+                <div className="flex items-center mb-2">
+                  <FontAwesomeIcon
+                    icon={faCalendar}
+                    className="w-4 h-4 mr-2 text-brand-icon"
+                  />
+                  <label className="text-sm font-medium text-gray-600">
+                    Date of Birth
+                  </label>
+                </div>
+                <p className="text-gray-900 ml-6">
                   {mockPatient.dateOfBirth.toLocaleDateString()}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">
-                  Contact
-                </label>
-                <p className="text-gray-900">{mockPatient.contact}</p>
+                <div className="flex items-center mb-2">
+                  <FontAwesomeIcon
+                    icon={faPhone}
+                    className="w-4 h-4 mr-2 text-brand-icon"
+                  />
+                  <label className="text-sm font-medium text-gray-600">
+                    Contact
+                  </label>
+                </div>
+                <p className="text-gray-900 ml-6">{mockPatient.contact}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">
-                  Medical Record Number
-                </label>
-                <p className="text-gray-900">{mockPatient.medicalId}</p>
+                <div className="flex items-center mb-2">
+                  <FontAwesomeIcon
+                    icon={faIdCard}
+                    className="w-4 h-4 mr-2 text-brand-icon"
+                  />
+                  <label className="text-sm font-medium text-gray-600">
+                    Medical Record Number
+                  </label>
+                </div>
+                <p className="text-gray-900 ml-6">{mockPatient.medicalId}</p>
               </div>
             </CardContent>
-          </Card>{" "}
-          {/* New Encounter Card */}{" "}
-          <RecordingComponent
-            patientId={params.patientId as string}
-            onEncounterSaved={() => {
-              // Refresh the page or update the encounters list
-              window.location.reload();
-            }}
-          />
-        </div>
-
+          </Card>
+        </div>{" "}
         {/* Encounters List */}
         <div className="lg:col-span-2">
-          <Card>
+          <Card className="card-hover shadow-brand">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Encounter History</CardTitle>
+                  <CardTitle className="text-brand-primary flex items-center">
+                    <FontAwesomeIcon
+                      icon={faFileText}
+                      className="w-5 h-5 mr-3 text-brand-icon"
+                    />
+                    Encounter History
+                  </CardTitle>
                   <CardDescription>
                     Past clinical notes and documentation
                   </CardDescription>
                 </div>
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="text-brand-primary">
                   {mockPatient.encounters.length} encounters
                 </Badge>
               </div>
@@ -148,10 +217,13 @@ export default function PatientDetailPage() {
                       key={encounter.id}
                       href={`/dashboard/patients/${params.patientId}/encounters/${encounter.id}`}
                     >
-                      <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="p-4 border rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <FileText className="h-5 w-5 text-gray-500" />
+                            <FontAwesomeIcon
+                              icon={faFileText}
+                              className="w-5 h-5 text-brand-icon"
+                            />
                             <div>
                               <h3 className="font-medium text-gray-900">
                                 {encounter.title}
@@ -161,7 +233,10 @@ export default function PatientDetailPage() {
                                   {encounter.createdAt.toLocaleDateString()}
                                 </span>
                                 <div className="flex items-center">
-                                  <Clock className="h-4 w-4 mr-1" />
+                                  <FontAwesomeIcon
+                                    icon={faClock}
+                                    className="w-4 h-4 mr-1"
+                                  />
                                   {formatDuration(encounter.duration)}
                                 </div>
                               </div>
@@ -183,7 +258,10 @@ export default function PatientDetailPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <FontAwesomeIcon
+                    icon={faFileText}
+                    className="w-12 h-12 text-gray-400 mx-auto mb-4"
+                  />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     No encounters yet
                   </h3>
