@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTimes, faPlus, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faTimes, faPlus, faCheck, faSave } from "@fortawesome/free-solid-svg-icons";
 
 interface TemplateField {
   id: string;
@@ -64,6 +64,47 @@ export default function SettingsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(templates[0]);
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldDescription, setNewFieldDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");  // Load templates from localStorage and API on component mount
+  useEffect(() => {
+    const loadTemplates = async () => {
+      // First try to load from localStorage for immediate UI
+      const savedTemplates = localStorage.getItem('aaronotes-templates');
+      if (savedTemplates) {
+        try {
+          const parsedTemplates = JSON.parse(savedTemplates);
+          setTemplates(parsedTemplates);
+          setSelectedTemplate(parsedTemplates[0]);
+        } catch (error) {
+          console.error('Error loading templates from localStorage:', error);
+        }
+      }
+
+      // Then load from API (for future when we have a proper backend)
+      try {
+        const response = await fetch('/api/templates');
+        if (response.ok) {
+          const apiTemplates = await response.json();
+          if (apiTemplates.length > 0) {
+            setTemplates(apiTemplates);
+            setSelectedTemplate(apiTemplates[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading templates from API:', error);
+        // Fall back to localStorage or default templates
+      }
+    };
+
+    loadTemplates();
+  }, []); // Empty dependency array for mount-only effect
+
+  // Save templates to localStorage whenever templates change
+  useEffect(() => {
+    if (templates.length > 0) {
+      localStorage.setItem('aaronotes-templates', JSON.stringify(templates));
+    }
+  }, [templates]);
 
   const addField = () => {
     if (newFieldName.trim()) {
@@ -98,16 +139,41 @@ export default function SettingsPage() {
         field.id === fieldId ? { ...field, required: !field.required } : field
       ),
     });
-  };
+  };  const saveTemplate = async () => {
+    setIsSaving(true);
+    setSaveMessage("");
 
-  const saveTemplate = () => {
-    setTemplates(
-      templates.map((template) =>
+    try {
+      // Update the templates array with the current selected template
+      const updatedTemplates = templates.map((template) =>
         template.id === selectedTemplate.id ? selectedTemplate : template
-      )
-    );
-    // Here you would save to your backend
-    alert("Template saved successfully!");
+      );
+      
+      // Save to API
+      const response = await fetch('/api/templates', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(selectedTemplate)
+      });      if (!response.ok) {
+        throw new Error('Failed to save template');
+      }
+
+      await response.json();
+      
+      // Update local state
+      setTemplates(updatedTemplates);
+      
+      setSaveMessage("Template saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (error) {
+      console.error('Error saving template:', error);
+      setSaveMessage("Error saving template. Please try again.");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -130,9 +196,8 @@ export default function SettingsPage() {
               Define custom fields to extract from voice recordings
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="template-name">Template Name</Label>
+          <CardContent className="space-y-4">            <div>
+              <Label htmlFor="template-name" className="mb-2 block">Template Name</Label>
               <Input
                 id="template-name"
                 value={selectedTemplate.name}
@@ -142,6 +207,7 @@ export default function SettingsPage() {
                     name: e.target.value,
                   })
                 }
+                placeholder="Enter template name"
               />
             </div>
             <div className="space-y-3">
@@ -206,19 +272,28 @@ export default function SettingsPage() {
                   Add Field
                 </button>
               </div>
-            </div>{" "}
-            <div className="border-t pt-4">
+            </div>{" "}            <div className="border-t pt-4">
               <button
                 onClick={saveTemplate}
-                className="btn-brand flex items-center px-4 py-2 rounded-lg font-medium transition-all w-full justify-center"
+                disabled={isSaving}
+                className={`btn-brand flex items-center px-4 py-2 rounded-lg font-medium transition-all w-full justify-center ${
+                  isSaving ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 <FontAwesomeIcon
-                  icon={faCheck}
+                  icon={isSaving ? faSave : faCheck}
                   size="sm"
-                  className="mr-2 text-brand-icon"
+                  className={`mr-2 text-brand-icon ${isSaving ? 'animate-pulse' : ''}`}
                 />
-                Save Template
+                {isSaving ? 'Saving...' : 'Save Template'}
               </button>
+              {saveMessage && (
+                <div className={`mt-2 text-sm text-center ${
+                  saveMessage.includes('Error') ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {saveMessage}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
