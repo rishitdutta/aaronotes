@@ -37,7 +37,7 @@ export default function DashboardLayout({
                 className="w-5 h-5 mr-4 text-brand-icon"
               />
               Dashboard
-            </Link>
+            </Link>{" "}
             <Link
               href="/dashboard/patients"
               className="sidebar-btn flex items-center px-6 py-4 text-brand-primary rounded-xl transition-all group"
@@ -47,6 +47,17 @@ export default function DashboardLayout({
                 className="w-5 h-5 mr-4 text-brand-icon"
               />
               Patients
+            </Link>
+            {/* Temporary test link - remove in production */}
+            <Link
+              href="/test-backend"
+              className="sidebar-btn flex items-center px-6 py-4 text-orange-600 rounded-xl transition-all group"
+            >
+              <FontAwesomeIcon
+                icon={faCog}
+                className="w-5 h-5 mr-4 text-orange-500"
+              />
+              Test Backend
             </Link>{" "}
           </div>
         </nav>

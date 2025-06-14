@@ -42,14 +42,14 @@ export async function GET() {
           },
           {
             id: "history_present_illness",
-            name: "History of Present Illness", 
+            name: "History of Present Illness",
             description: "Detailed description of current symptoms",
             required: true,
           },
           {
             id: "review_systems",
             name: "Review of Systems",
-            description: "Systematic review of body systems", 
+            description: "Systematic review of body systems",
             required: false,
           },
           {
@@ -98,11 +98,11 @@ export async function PUT(request: NextRequest) {
 
     // TODO: Save to database when templates table is created
     // For now, we'll rely on localStorage on the frontend
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       message: "Template saved successfully",
-      template 
+      template,
     });
   } catch (error) {
     console.error("Error saving template:", error);

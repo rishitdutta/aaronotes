@@ -40,6 +40,12 @@ export default function EncounterPage() {
   const [patientName, setPatientName] = useState("");
   const [encounterTitle, setEncounterTitle] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState("");
+  const [lastResult, setLastResult] = useState<{
+    transcript: string;
+    structuredNote: Record<string, string>;
+    encounterId?: string;
+  } | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,7 +53,17 @@ export default function EncounterPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Try to use WAV format if supported, otherwise use webm
+      let mimeType = "audio/wav";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/webm;codecs=opus";
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = "audio/webm";
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       const recordingId = Date.now().toString();
 
       mediaRecorderRef.current = mediaRecorder;
@@ -58,7 +74,7 @@ export default function EncounterPage() {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/wav" });
+        const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const newAudioFile = {
           id: recordingId,
@@ -163,20 +179,67 @@ export default function EncounterPage() {
     }
 
     setIsProcessing(true);
+    setProcessingStatus("Preparing audio files...");
+    setLastResult(null);
 
     try {
-      // Here you would send the audio files to your transcription service
+      // Send audio files to transcription service
       const formData = new FormData();
+
+      // Add all audio files with proper file names
       audioFiles.forEach((audioFile, index) => {
-        formData.append(`audio_${index}`, audioFile.blob);
+        // Convert blob to file with proper name and type
+        const file = new File(
+          [audioFile.blob],
+          audioFile.name || `recording_${index + 1}`,
+          {
+            type: audioFile.blob.type || "audio/webm",
+          }
+        );
+        formData.append("audio_files", file);
+      }); // Add metadata
+      if (patientName) formData.append("patientName", patientName);
+      if (encounterTitle) formData.append("encounterTitle", encounterTitle);
+
+      // Debug: Log FormData contents
+      console.log("FormData contents:");
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(
+            `${key}: File - ${value.name} (${value.type}, ${value.size} bytes)`
+          );
+        } else {
+          console.log(`${key}: ${value}`);
+        }
+      }
+
+      setProcessingStatus("Transcribing audio files...");
+
+      const response = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData,
       });
-      formData.append("patientName", patientName);
-      formData.append("title", encounterTitle);
 
-      // Simulate processing
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to process encounter");
+      }
 
-      alert("Encounter processed successfully! (This is a demo)");
+      setProcessingStatus("Processing transcription results...");
+      const result = await response.json();
+
+      setLastResult(result);
+
+      // Show success message with more details
+      const transcriptPreview =
+        result.transcript?.substring(0, 200) || "No transcript available";
+      alert(
+        `Encounter processed successfully!\n\nTranscript Preview:\n"${transcriptPreview}${
+          result.transcript?.length > 200 ? "..." : ""
+        }"\n\nStructured Note: ${
+          result.structuredNote ? "Generated" : "Not available"
+        }`
+      );
 
       // Reset form
       setAudioFiles([]);
@@ -185,9 +248,14 @@ export default function EncounterPage() {
       setRecordingTime(0);
     } catch (error) {
       console.error("Error processing encounter:", error);
-      alert("Error processing encounter. Please try again.");
+      alert(
+        `Error processing encounter: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsProcessing(false);
+      setProcessingStatus("");
     }
   };
 
@@ -464,10 +532,11 @@ export default function EncounterPage() {
                     : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }`}
               >
+                {" "}
                 {isProcessing ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary mr-3"></div>
-                    Processing...
+                    {processingStatus || "Processing..."}
                   </>
                 ) : (
                   <>
@@ -480,9 +549,62 @@ export default function EncounterPage() {
                 )}
               </button>
             </div>
-          </CardContent>
+          </CardContent>{" "}
         </Card>
       </div>
+      {/* Results Section */}
+      {lastResult && (
+        <Card className="card-hover shadow-brand mt-8">
+          <CardHeader>
+            <CardTitle className="text-brand-primary flex items-center text-lg">
+              <FontAwesomeIcon
+                icon={faSave}
+                className="w-5 h-5 mr-3 text-brand-icon"
+              />
+              Last Processing Results
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Results from the most recent audio processing
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="font-medium text-gray-900 mb-2">Raw Transcript</h3>
+              <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-700 max-h-32 overflow-y-auto">
+                {lastResult.transcript || "No transcript available"}
+              </div>
+            </div>
+
+            {lastResult.structuredNote && (
+              <div>
+                <h3 className="font-medium text-gray-900 mb-2">
+                  Structured Clinical Note
+                </h3>
+                <div className="space-y-3">
+                  {Object.entries(lastResult.structuredNote).map(
+                    ([key, value]) => (
+                      <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium text-sm text-gray-800 mb-1 capitalize">
+                          {key.replace(/([A-Z])/g, " $1").trim()}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {value as string}
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {lastResult.encounterId && (
+              <div className="text-sm text-green-600">
+                ✓ Encounter saved to database (ID: {lastResult.encounterId})
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
