@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -45,6 +46,10 @@ export default function EncounterPage() {
     transcript: string;
     structuredNote: Record<string, string>;
     encounterId?: string;
+    patientId?: string;
+    patientName?: string;
+    encounterTitle?: string;
+    createdPatient?: boolean;
   } | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -227,19 +232,31 @@ export default function EncounterPage() {
 
       setProcessingStatus("Processing transcription results...");
       const result = await response.json();
-
       setLastResult(result);
 
       // Show success message with more details
       const transcriptPreview =
         result.transcript?.substring(0, 200) || "No transcript available";
-      alert(
-        `Encounter processed successfully!\n\nTranscript Preview:\n"${transcriptPreview}${
-          result.transcript?.length > 200 ? "..." : ""
-        }"\n\nStructured Note: ${
-          result.structuredNote ? "Generated" : "Not available"
-        }`
-      );
+
+      let successMessage = `Encounter processed successfully!`;
+
+      if (result.createdPatient) {
+        successMessage += `\n\n✓ New patient created: ${result.patientName}`;
+      } else if (result.patientName) {
+        successMessage += `\n\n✓ Patient: ${result.patientName}`;
+      }
+
+      if (result.encounterId) {
+        successMessage += `\n✓ Encounter saved to database (ID: ${result.encounterId})`;
+      }
+
+      successMessage += `\n\nTranscript Preview:\n"${transcriptPreview}${
+        result.transcript?.length > 200 ? "..." : ""
+      }"\n\nStructured Note: ${
+        result.structuredNote ? "Generated" : "Not available"
+      }`;
+
+      alert(successMessage);
 
       // Reset form
       setAudioFiles([]);
@@ -574,7 +591,6 @@ export default function EncounterPage() {
                 {lastResult.transcript || "No transcript available"}
               </div>
             </div>
-
             {lastResult.structuredNote && (
               <div>
                 <h3 className="font-medium text-gray-900 mb-2">
@@ -595,11 +611,38 @@ export default function EncounterPage() {
                   )}
                 </div>
               </div>
-            )}
-
+            )}{" "}
             {lastResult.encounterId && (
-              <div className="text-sm text-green-600">
-                ✓ Encounter saved to database (ID: {lastResult.encounterId})
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                <div>
+                  <div className="text-sm font-medium text-green-800">
+                    ✓ Encounter saved to database
+                  </div>
+                  <div className="text-xs text-green-600">
+                    ID: {lastResult.encounterId}
+                    {lastResult.patientId &&
+                      ` • Patient ID: ${lastResult.patientId}`}
+                  </div>
+                </div>
+                {lastResult.patientId && (
+                  <Link
+                    href={`/dashboard/patients/${lastResult.patientId}`}
+                    className="text-sm text-green-700 hover:text-green-800 underline"
+                  >
+                    View Patient →
+                  </Link>
+                )}
+              </div>
+            )}
+            {lastResult.createdPatient && (
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="text-sm font-medium text-blue-800">
+                  ✓ New patient created: {lastResult.patientName}
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  The patient name was extracted from your recording and a new
+                  patient record was created.
+                </div>
               </div>
             )}
           </CardContent>

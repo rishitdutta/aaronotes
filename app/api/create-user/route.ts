@@ -26,9 +26,10 @@ export async function POST() {
     dbUser = await db.user.create({
       data: {
         clerkId: user.id,
-        email: user.emailAddresses[0]?.emailAddress || "",
+        email: user.emailAddresses?.[0]?.emailAddress || "",
         firstName: user.firstName || "",
         lastName: user.lastName || "",
+        image: user.imageUrl,
       },
     });
 
@@ -39,7 +40,10 @@ export async function POST() {
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(
-      { error: "Failed to create user", details: error },
+      {
+        error: "Failed to create user",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

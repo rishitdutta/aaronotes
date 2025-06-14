@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+
+// Define TypeScript interfaces for better type safety
+interface TranscriptChunk {
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface TranscriptResult {
+  filename: string;
+  transcript: string;
+  chunks: TranscriptChunk[];
+  language: string;
+  language_probability: number;
+}
+
+interface StructuredNote {
+  chiefComplaint: string;
+  historyOfPresentIllness: string;
+  physicalExam: string;
+  assessment: string;
+  plan: string;
+}
+
+interface BackendTranscriptionResponse {
+  combined_transcript: string;
+  structured_note: StructuredNote;
+  transcripts: TranscriptResult[];
+  patient_name: string;
+  encounter_title: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,19 +130,11 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 2: Try the fixed transcribe-multiple endpoint with extended timeout
-    console.log("Attempting transcription with fixed endpoint...");
-
-    // Create AbortController for timeout management
+    console.log("Attempting transcription with fixed endpoint..."); // Create AbortController for timeout management
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes timeout
 
-    let result: {
-      combined_transcript: string;
-      structured_note: any;
-      transcripts: any[];
-      patient_name: string;
-      encounter_title: string;
-    };
+    let result: BackendTranscriptionResponse;
 
     try {
       const transcriptionResponse = await fetch(
@@ -155,28 +179,92 @@ export async function POST(request: NextRequest) {
       }
 
       throw fetchError;
-    }
-
-    // Step 3: Save to database if patientId is provided and we have a result
+    } // Step 3: Create or find patient and save encounter
     let encounter = null;
-    if (patientId && result) {
-      encounter = await db.encounter.create({
+    let patient = null;
+
+    // Get or ensure user exists in database
+    let dbUser = await db.user.findUnique({
+      where: { clerkId: user.id },
+    });
+
+    if (!dbUser) {
+      dbUser = await db.user.create({
         data: {
-          patientId,
-          rawTranscript: result.combined_transcript,
-          structuredNote: result.structured_note,
-          status: "DRAFT",
+          clerkId: user.id,
+          email: user.emailAddresses?.[0]?.emailAddress,
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          image: user.imageUrl,
         },
       });
     }
 
+    // If patientId is provided, use that patient
+    if (patientId) {
+      patient = await db.patient.findFirst({
+        where: {
+          id: patientId,
+          userId: dbUser.id,
+        },
+      });
+    }
+
+    // If no patient found and we have a patient name from the transcript, create a new patient
+    if (!patient && result.patient_name && result.patient_name.trim() !== "") {
+      const extractedName = result.patient_name.trim(); // Try to find existing patient by name
+      patient = await db.patient.findFirst({
+        where: {
+          name: {
+            contains: extractedName,
+          },
+          userId: dbUser.id,
+        },
+      });
+
+      // If still no patient found, create a new one
+      if (!patient) {
+        patient = await db.patient.create({
+          data: {
+            name: extractedName,
+            userId: dbUser.id,
+          },
+        });
+        console.log(
+          `Created new patient: ${extractedName} (ID: ${patient.id})`
+        );
+      } else {
+        console.log(
+          `Found existing patient: ${patient.name} (ID: ${patient.id})`
+        );
+      }
+    }
+
+    // Create encounter if we have a patient and result
+    if (patient && result) {
+      encounter = await db.encounter.create({
+        data: {
+          patientId: patient.id,
+          title: result.encounter_title || "Clinical Note",
+          rawTranscript: result.combined_transcript,
+          structuredNote:
+            result.structured_note as unknown as Prisma.InputJsonValue,
+          status: "DRAFT",
+        },
+      });
+      console.log(
+        `Created encounter for patient ${patient.name} (Encounter ID: ${encounter.id})`
+      );
+    }
     return NextResponse.json({
       transcript: result.combined_transcript,
       structuredNote: result.structured_note,
       transcripts: result.transcripts,
       encounterId: encounter?.id,
-      patientName: result.patient_name,
+      patientId: patient?.id,
+      patientName: patient?.name || result.patient_name,
       encounterTitle: result.encounter_title,
+      createdPatient: !patientId && patient ? true : false, // Indicates if a new patient was created
     });
   } catch (error: unknown) {
     const err = error as { message?: string };
