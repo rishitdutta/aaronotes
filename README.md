@@ -2,6 +2,8 @@
 
 An AI-powered clinical documentation system that converts speech to structured medical notes using advanced speech recognition and natural language processing.
 
+### AaroNotes is deployed here: https://aaronotes.vercel.app/
+
 ## Features
 
 - **User Authentication**: Secure authentication with Clerk

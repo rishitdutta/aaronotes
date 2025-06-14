@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import SelectableTranscript from "@/components/SelectableTranscript";
+import PatientSelector from "@/components/PatientSelector";
 import {
   Card,
   CardContent,
@@ -39,6 +41,7 @@ export default function EncounterPage() {
     }>
   >([]);
   const [patientName, setPatientName] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [encounterTitle, setEncounterTitle] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState("");
@@ -50,11 +53,23 @@ export default function EncounterPage() {
     patientName?: string;
     encounterTitle?: string;
     createdPatient?: boolean;
+    transcripts?: Array<{
+      filename: string;
+      transcript: string;
+      chunks: Array<{
+        start: number;
+        end: number;
+        text: string;
+      }>;
+      language: string;
+      language_probability: number;
+    }>;
   } | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -146,6 +161,7 @@ export default function EncounterPage() {
       }, 1000);
     }
   };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
@@ -177,6 +193,7 @@ export default function EncounterPage() {
       .toString()
       .padStart(2, "0")}`;
   };
+
   const processEncounter = async () => {
     if (audioFiles.length === 0) {
       alert("No audio files found.");
@@ -202,8 +219,11 @@ export default function EncounterPage() {
           }
         );
         formData.append("audio_files", file);
-      }); // Add metadata
+      });
+
+      // Add metadata
       if (patientName) formData.append("patientName", patientName);
+      if (selectedPatientId) formData.append("patientId", selectedPatientId);
       if (encounterTitle) formData.append("encounterTitle", encounterTitle);
 
       // Debug: Log FormData contents
@@ -276,9 +296,53 @@ export default function EncounterPage() {
     }
   };
 
+  const saveEncounter = async () => {
+    if (!lastResult || !lastResult.transcript) {
+      alert("No processed encounter to save");
+      return;
+    }
+
+    try {
+      const encounterData = {
+        patientId: lastResult.patientId || selectedPatientId,
+        transcript: lastResult.transcript,
+        structuredNote: lastResult.structuredNote,
+        title: lastResult.encounterTitle || encounterTitle || "Clinical Note",
+        duration: 0, // We can add audio duration calculation later
+      };
+
+      const response = await fetch("/api/encounters", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(encounterData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save encounter");
+      }
+
+      const savedEncounter = await response.json();
+      alert(`Encounter saved successfully! ID: ${savedEncounter.id}`);
+      
+      // Reset form after successful save
+      setAudioFiles([]);
+      setPatientName("");
+      setSelectedPatientId("");
+      setEncounterTitle("");
+      setLastResult(null);
+      
+    } catch (error) {
+      console.error("Error saving encounter:", error);
+      alert("Failed to save encounter. Please try again.");
+    }
+  };
+
   const removeAudioFile = (fileId: string) => {
     setAudioFiles((prev) => prev.filter((file) => file.id !== fileId));
   };
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -491,21 +555,19 @@ export default function EncounterPage() {
             </CardDescription>
           </CardHeader>{" "}
           <CardContent className="space-y-6">
-            <div>
-              <Label htmlFor="patient-name" className="mb-2 block">
-                Patient Name (Optional)
-              </Label>
-              <Input
-                id="patient-name"
-                placeholder="Enter patient name or leave blank to infer from recording"
-                value={patientName}
-                onChange={(e) => setPatientName(e.target.value)}
-              />
-              <p className="text-xs text-gray-600 mt-1">
-                If left blank, we&apos;ll try to identify the patient from the
-                recording
-              </p>
-            </div>
+            <PatientSelector
+              selectedPatientId={selectedPatientId}
+              selectedPatientName={patientName}
+              onPatientSelect={(patient) => {
+                if (patient) {
+                  setSelectedPatientId(patient.id);
+                  setPatientName(patient.name);
+                } else {
+                  setSelectedPatientId("");
+                }
+              }}
+              onNewPatientName={(name) => setPatientName(name)}
+            />
             <div>
               <Label htmlFor="encounter-title" className="mb-2 block">
                 Encounter Title (Optional)
@@ -583,14 +645,23 @@ export default function EncounterPage() {
             <CardDescription className="text-gray-600">
               Results from the most recent audio processing
             </CardDescription>
-          </CardHeader>
+          </CardHeader>{" "}
           <CardContent className="space-y-6">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-2">Raw Transcript</h3>
-              <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-700 max-h-32 overflow-y-auto">
-                {lastResult.transcript || "No transcript available"}
+            {/* Raw Transcript with Selection */}
+            {lastResult.transcript && (
+              <div>
+                <h3 className="font-medium text-gray-900 mb-2">Raw Transcript</h3>{" "}
+                <SelectableTranscript
+                  transcript={lastResult.transcript}
+                  transcripts={lastResult.transcripts}
+                  audioFiles={audioFiles}
+                  className="mb-2"
+                />
+                <p className="text-xs text-gray-500 italic">
+                  💡 Select any text above to see &quot;Hear original&quot; option
+                </p>
               </div>
-            </div>
+            )}{" "}
             {lastResult.structuredNote && (
               <div>
                 <h3 className="font-medium text-gray-900 mb-2">
@@ -632,8 +703,7 @@ export default function EncounterPage() {
                     View Patient →
                   </Link>
                 )}
-              </div>
-            )}
+              </div>            )}
             {lastResult.createdPatient && (
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                 <div className="text-sm font-medium text-blue-800">
@@ -645,6 +715,31 @@ export default function EncounterPage() {
                 </div>
               </div>
             )}
+            
+            {/* Save Encounter Button */}
+            {lastResult && lastResult.transcript && (
+              <div className="border-t pt-6">
+                <button
+                  onClick={saveEncounter}
+                  className="w-full btn-brand flex items-center justify-center px-6 py-4 rounded-xl font-medium shadow-sm"
+                >
+                  <FontAwesomeIcon icon={faSave} className="w-5 h-5 mr-3" />
+                  Save Encounter to Patient Record
+                </button>
+              </div>
+            )}
+            <div className="border-t pt-6">
+              <button
+                onClick={saveEncounter}
+                className="w-full flex items-center justify-center px-6 py-4 rounded-xl font-medium transition-all shadow-sm btn-brand"
+              >
+                <FontAwesomeIcon
+                  icon={faSave}
+                  className="w-4 h-4 mr-3 text-brand-icon"
+                />
+                Save Encounter
+              </button>
+            </div>
           </CardContent>
         </Card>
       )}
